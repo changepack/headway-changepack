@@ -1,0 +1,20 @@
+GEM
+  remote: https://rubygems.org/
+  specs:
+    nokogiri (1.15.2-arm64-darwin)
+      racc (~> 1.4)
+    open-uri-cached (1.0.0)
+    racc (1.7.0)
+
+PLATFORMS
+  arm64-darwin-22
+
+DEPENDENCIES
+  nokogiri
+  open-uri-cached
+
+RUBY VERSION
+   ruby 3.2.2p53
+
+BUNDLED WITH
+   2.4.10

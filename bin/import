@@ -1,0 +1,59 @@
+#!/usr/bin/env ruby
+
+require 'open-uri'
+require 'open-uri/cached'
+require 'nokogiri'
+require 'json'
+require 'net/http'
+
+def parse_page(url)
+  posts = []
+
+  loop do
+    page = Nokogiri::HTML(URI.open(url))
+
+    page.css('.changelogItem.published').each do |post|
+      title = post.css('.title').text.strip
+      content = post.css('.content').inner_html.strip
+      published_at = post.css('time').attribute('datetime').value
+
+      posts << { title:, content:, published_at: }
+
+      puts "Reading: #{title}"
+    end
+
+    next_link = page.css('.pagination a').attr('href')
+
+    break if next_link.nil? # Exit loop when there's no more pages
+    url = ENV['SOURCE_URL'] + next_link # Prepare URL for next page
+  end
+
+  posts
+end
+
+def send_posts(posts)
+  uri = URI("#{ENV['CHANGEPACK_URL']}/api/v1/posts")
+  http = Net::HTTP.new(uri.host, uri.port)
+  http.use_ssl = true
+  http.verify_mode = OpenSSL::SSL::VERIFY_NONE # Disable SSL verification
+
+  posts.each do |post|
+    request = Net::HTTP::Post.new(uri, 'Content-Type' => 'application/json')
+    request['Authorization'] = "Bearer #{ENV['API_TOKEN']}"
+    request.body = post.to_json
+
+    response = http.request(request)
+
+    if response.is_a?(Net::HTTPSuccess)
+      puts "Imported: '#{post[:title]}'"
+    else
+      puts "Failed to import: '#{post[:title]}'"
+    end
+  end
+end
+
+# Scrape the posts
+posts = parse_page(ENV['SOURCE_URL'])
+
+# After all posts are scraped, send them to API
+send_posts(posts)
