@@ -5,6 +5,7 @@ require 'open-uri/cached'
 require 'nokogiri'
 require 'json'
 require 'net/http'
+require 'byebug'
 
 def parse_page(url)
   posts = []
@@ -16,6 +17,9 @@ def parse_page(url)
       title = post.css('.title').text.strip
       content = post.css('.content').inner_html.strip
       published_at = post.css('time').attribute('datetime').value
+
+      # Clean the content before storing it
+      content = clean_content(content)
 
       posts << { title:, content:, published_at: }
 
@@ -29,6 +33,32 @@ def parse_page(url)
   end
 
   posts
+end
+
+def clean_content(content)
+  doc = Nokogiri::HTML.fragment(content)
+
+  # Remove category, beforeCategories and afterCategories elements
+  ['.beforeCategories', '.category', '.afterCategories'].each do |selector|
+    doc.css(selector).remove
+  end
+
+  # Remove leading and trailing <br> elements within each paragraph
+  doc.css('p').each do |paragraph|
+    first_child = paragraph.children.first
+    last_child = paragraph.children.last
+
+    first_child.remove if first_child.name == 'br'
+    last_child.remove if last_child.name == 'br'
+  end
+
+  # Remove initial whitespace
+  while doc.children.first && doc.children.first.text.strip.empty?
+    doc.children.first.remove
+  end
+
+  # Remove newline characters and non-breaking spaces
+  doc.to_s.gsub(/[\n\u00A0]/, "").strip
 end
 
 def send_posts(posts)

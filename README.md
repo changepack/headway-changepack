@@ -16,5 +16,5 @@ cd headway-changepack
 bundle install
 
 # Run the import script
-SOURCE_URL=https://www.example.com CHANGEPACK_URL=https://changepack.test API_TOKEN=your_token_here bin/import
+SOURCE_URL=https://www.example.com CHANGEPACK_URL=https://changepack.test API_TOKEN=your_token_here bundle exec bin/import
 ```
