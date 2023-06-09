@@ -19,6 +19,8 @@ def parse_page(url)
       content = post.css('.content').inner_html.strip
       published_at = post.css('time').attribute('datetime').value
 
+      next if ENV['START_DATE'].present? && Date.parse(published_at) < Date.parse(ENV['START_DATE'])
+
       doc = Nokogiri::HTML.fragment(content)
       doc.css('img').each do |img|
         original_url = img['src']
