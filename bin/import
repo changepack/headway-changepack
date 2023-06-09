@@ -5,6 +5,7 @@ require 'open-uri/cached'
 require 'nokogiri'
 require 'json'
 require 'net/http'
+require 'net/http/post/multipart'
 require 'byebug'
 
 def parse_page(url)
@@ -18,8 +19,15 @@ def parse_page(url)
       content = post.css('.content').inner_html.strip
       published_at = post.css('time').attribute('datetime').value
 
+      doc = Nokogiri::HTML.fragment(content)
+      doc.css('img').each do |img|
+        original_url = img['src']
+        uploaded_image_url = upload_image(original_url)
+        img['src'] = uploaded_image_url if uploaded_image_url
+      end
+
       # Clean the content before storing it
-      content = clean_content(content)
+      content = clean_content(doc.to_html)
 
       posts << { title:, content:, published_at: }
 
@@ -59,6 +67,34 @@ def clean_content(content)
 
   # Remove newline characters and non-breaking spaces
   doc.to_s.gsub(/[\n\u00A0]/, "").strip
+end
+
+def upload_image(url)
+  begin
+    url = "https:#{url}" unless url.start_with?('http://', 'https://')
+
+    file_uri = URI.parse(url)
+    file_name = File.basename(file_uri.path)
+    file = URI.open(url)
+
+    uri = URI("#{ENV['CHANGEPACK_URL']}/api/v1/images")
+    http = Net::HTTP.new(uri.host, uri.port)
+    http.use_ssl = true
+    http.verify_mode = OpenSSL::SSL::VERIFY_NONE # Disable SSL verification
+
+    request = Net::HTTP::Post::Multipart.new(
+      uri.path,
+      { file: UploadIO.new(file, "image/jpeg", file_name) }
+    )
+    request['Authorization'] = "Bearer #{ENV['API_TOKEN']}"
+
+    response = http.request(request)
+    JSON.parse(response.body)['url'] if response.is_a?(Net::HTTPSuccess)
+  rescue => e
+    byebug
+    puts "Failed to upload image: #{url} due to #{e}"
+    nil
+  end
 end
 
 def send_posts(posts)
